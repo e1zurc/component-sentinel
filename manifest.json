@@ -1,0 +1,18 @@
+{
+  "name": "Component Sentinel",
+  "id": "component-sentinel",
+  "api": "1.0.0",
+  "main": "src/code.js",
+  "ui": "ui.html",
+  "menu": [
+    { "name": "Scan file", "command": "scan" },
+    { "name": "Generate test data", "command": "generate-test-data" }
+  ],
+  "editorType": ["figma"],
+  "capabilities": [],
+  "enableProposedApi": false,
+  "networkAccess": {
+    "allowedDomains": ["none"]
+  },
+  "documentAccess": "dynamic-page"
+}
