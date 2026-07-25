@@ -26,6 +26,11 @@ minute.
 - To flag a component as deprecated: select the component (or component set)
   on the canvas, and a panel appears at the bottom of the plugin letting you
   mark it and add a short reason — anyone else who runs Sentinel will see it.
+- **Copy report as Markdown / Copy as JSON** — at the top of the panel, these
+  copy a full report (with direct links to every flagged instance) to your
+  clipboard. Paste the Markdown into a Slack message, ticket, or PR
+  description so a developer can see exactly what's changing without
+  installing the plugin themselves.
 
 ## Updating
 

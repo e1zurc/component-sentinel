@@ -10,7 +10,7 @@ interface ComponentRow {
   status: 'ok' | 'deprecated' | 'missing'
   reason: string
   count: number
-  pages: { pageId: string; pageName: string; nodeIds: string[] }[]
+  pages: { pageId: string; pageName: string; nodeIds: string[]; url: string | null }[]
 }
 
 interface InstanceRef {
@@ -75,7 +75,7 @@ async function scan(): Promise<ComponentRow[]> {
 
     let pageEntry = row.pages.find((p) => p.pageId === pageId)
     if (!pageEntry) {
-      pageEntry = { pageId, pageName, nodeIds: [] }
+      pageEntry = { pageId, pageName, nodeIds: [], url: buildNodeUrl(instance.id) }
       row.pages.push(pageEntry)
     }
     pageEntry.nodeIds.push(instance.id)
@@ -86,6 +86,12 @@ async function scan(): Promise<ComponentRow[]> {
     if (rank[a.status] !== rank[b.status]) return rank[a.status] - rank[b.status]
     return b.count - a.count
   })
+}
+
+function buildNodeUrl(nodeId: string): string | null {
+  if (!figma.fileKey) return null
+  const urlNodeId = nodeId.replace(/:/g, '-')
+  return `https://www.figma.com/file/${figma.fileKey}/${encodeURIComponent(figma.root.name)}?type=design&node-id=${urlNodeId}`
 }
 
 function displayName(component: ComponentNode): string {

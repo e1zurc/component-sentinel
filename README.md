@@ -1,16 +1,24 @@
 # Component Sentinel
 
-A Figma plugin for design-system owners. It scans an entire file for every
-component instance and tells you:
+Answers the question every design-system owner eventually hits: **"we want to
+retire this component — who's still using it?"**
 
-- **Missing components** — instances whose main component no longer resolves
-  (e.g. removed from a library)
-- **Deprecated components** — components you've explicitly flagged, with a
-  reason, so anyone using them sees why and what replaces them
-- **Real usage counts** — every component ranked by how many instances exist,
-  across every page, so you know what's actually safe to delete or change
+Mark a component deprecated with a reason, and Component Sentinel finds every
+instance still using it, across every page in the file. It also catches
+**missing components** — instances whose main component no longer resolves
+(deleted, or removed from a library).
 
-Click any row to jump straight to those instances, even across pages.
+- Real usage counts per component, across the whole file
+- Click any row to jump straight to those instances, even across pages
+- **Export a report as Markdown or JSON**, with direct links to each flagged
+  instance — so an engineer can see exactly what's being retired without
+  installing the plugin themselves. Paste the Markdown into a PR description,
+  a ticket, or Slack; pipe the JSON into a script.
+
+This isn't a general design-system linter (hardcoded colors, detached
+instances, drift detection — tools like ComponentQA already cover that well).
+It's specifically for the deprecation/retirement workflow those tools don't
+touch.
 
 ## Using it
 
@@ -20,7 +28,8 @@ Click any row to jump straight to those instances, even across pages.
 
 To mark a component deprecated, select it (or its component set) on the
 canvas — a panel appears at the bottom of the plugin letting you flag it and
-add a short reason.
+add a short reason. Use **Copy report as Markdown** or **Copy as JSON** at
+the top of the panel to hand the results to someone else.
 
 ## Development
 

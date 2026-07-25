@@ -162,6 +162,12 @@
 
   <pre id="debug-output" style="display:none; margin:0; padding:10px 14px; font-size:10px; white-space:pre-wrap; overflow-y:auto; max-height:220px; border-bottom:1px solid var(--border); background:#0f0f0f; color:#8fe38f;"></pre>
 
+  <div style="display:flex; align-items:center; gap:8px; padding:8px 14px; border-bottom:1px solid var(--border);">
+    <button id="copy-md">Copy report as Markdown</button>
+    <button id="copy-json">Copy as JSON</button>
+    <span id="copy-status" style="color:var(--muted); font-size:11px;"></span>
+  </div>
+
   <div id="list"><div class="empty">Scanning the whole file — this can take a moment on large files.</div></div>
 
   <div id="selection-panel" class="hidden">
@@ -181,8 +187,70 @@
   const selDeprecated = document.getElementById('sel-deprecated')
   const selReason = document.getElementById('sel-reason')
   let currentSelectionNodeId = null
+  let lastRows = []
 
   function post(msg) { parent.postMessage({ pluginMessage: msg }, '*') }
+
+  function copyText(text) {
+    const done = () => {
+      const status = document.getElementById('copy-status')
+      status.textContent = 'Copied!'
+      setTimeout(() => { status.textContent = '' }, 2000)
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done))
+    } else {
+      fallbackCopy(text, done)
+    }
+  }
+
+  function fallbackCopy(text, done) {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.focus()
+    ta.select()
+    try { document.execCommand('copy') } catch (e) {}
+    document.body.removeChild(ta)
+    done()
+  }
+
+  function statusBadgeText(status) {
+    if (status === 'missing') return '\u{1F534} MISSING'
+    if (status === 'deprecated') return '\u{1F7E1} DEPRECATED'
+    return '✅ OK'
+  }
+
+  function rowToMarkdown(row) {
+    const lines = [`### ${row.name} — ${statusBadgeText(row.status)} (${row.count}×)`]
+    if (row.reason) lines.push(`_${row.reason}_`)
+    row.pages.forEach((p) => {
+      const label = `${p.pageName} (${p.nodeIds.length}×)`
+      lines.push(p.url ? `- [${label}](${p.url})` : `- ${label}`)
+    })
+    lines.push('')
+    return lines
+  }
+
+  function buildMarkdown(rows) {
+    const lines = ['# Component Sentinel Report', '']
+    const flagged = rows.filter((r) => r.status !== 'ok')
+    const ok = rows.filter((r) => r.status === 'ok')
+    if (flagged.length) {
+      lines.push('## Needs attention', '')
+      flagged.forEach((r) => lines.push(...rowToMarkdown(r)))
+    }
+    if (ok.length) {
+      lines.push('## Healthy components', '')
+      ok.forEach((r) => lines.push(...rowToMarkdown(r)))
+    }
+    return lines.join('\n')
+  }
+
+  document.getElementById('copy-md').onclick = () => copyText(buildMarkdown(lastRows))
+  document.getElementById('copy-json').onclick = () => copyText(JSON.stringify(lastRows, null, 2))
 
   document.getElementById('rescan').onclick = () => {
     subtitle.textContent = 'Scanning file…'
@@ -210,6 +278,7 @@
   }
 
   function render(rows) {
+    lastRows = rows
     if (!rows.length) {
       list.innerHTML = '<div class="empty">No component instances found in this file.</div>'
       subtitle.textContent = 'Nothing to report'

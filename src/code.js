@@ -55,7 +55,7 @@ async function scan() {
         row.count += 1;
         let pageEntry = row.pages.find((p) => p.pageId === pageId);
         if (!pageEntry) {
-            pageEntry = { pageId, pageName, nodeIds: [] };
+            pageEntry = { pageId, pageName, nodeIds: [], url: buildNodeUrl(instance.id) };
             row.pages.push(pageEntry);
         }
         pageEntry.nodeIds.push(instance.id);
@@ -66,6 +66,12 @@ async function scan() {
             return rank[a.status] - rank[b.status];
         return b.count - a.count;
     });
+}
+function buildNodeUrl(nodeId) {
+    if (!figma.fileKey)
+        return null;
+    const urlNodeId = nodeId.replace(/:/g, '-');
+    return `https://www.figma.com/file/${figma.fileKey}/${encodeURIComponent(figma.root.name)}?type=design&node-id=${urlNodeId}`;
 }
 function displayName(component) {
     const parent = component.parent;

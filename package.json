@@ -1,7 +1,7 @@
 {
   "name": "component-sentinel",
-  "version": "1.0.0",
-  "description": "Finds every instance of a deleted or deprecated component across a Figma file, and ranks components by real usage so design-system owners know what's safe to change or delete.",
+  "version": "1.1.0",
+  "description": "Tracks component deprecation and retirement across a Figma file: mark a component deprecated with a reason, find every instance still using it, and export a shareable Markdown or JSON report with direct links so developers don't need the plugin installed to see what's changing.",
   "scripts": {
     "build": "tsc -p .",
     "watch": "tsc -p . --watch",
