@@ -4,7 +4,8 @@
   "description": "Finds every instance of a deleted or deprecated component across a Figma file, and ranks components by real usage so design-system owners know what's safe to change or delete.",
   "scripts": {
     "build": "tsc -p .",
-    "watch": "tsc -p . --watch"
+    "watch": "tsc -p . --watch",
+    "package": "powershell -ExecutionPolicy Bypass -File scripts/package.ps1"
   },
   "devDependencies": {
     "@figma/plugin-typings": "^1.100.0",
