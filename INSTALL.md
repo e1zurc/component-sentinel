@@ -18,9 +18,9 @@ minute.
 
 ## Using it
 
-- **Plugins → Development → Component Sentinel → Scan file** — scans the
-  whole file (every page) and lists every component in use, sorted so
-  anything missing or deprecated shows up first.
+- **Plugins → Development → Component Sentinel** — scans the whole file
+  (every page) as soon as it opens, and lists every component in use, sorted
+  so anything missing or deprecated shows up first.
 - Click **Select all** on any row to jump straight to those instances, even
   if they're on a different page.
 - To flag a component as deprecated: select the component (or component set)

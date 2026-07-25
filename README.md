@@ -46,7 +46,7 @@ touch.
 
 1. In Figma: **Plugins → Development → Import plugin from manifest…**
 2. Select `manifest.json` from this folder
-3. Run **Plugins → Development → Component Sentinel → Scan file**
+3. Run **Plugins → Development → Component Sentinel** — it scans automatically on open
 
 To mark a component deprecated, select it (or its component set) on the
 canvas — a panel appears at the bottom of the plugin letting you flag it and
