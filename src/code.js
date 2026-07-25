@@ -20,6 +20,8 @@ function appendHistory(entry) {
     while (history.length > MAX_HISTORY_ENTRIES)
         history.shift();
     figma.root.setPluginData(HISTORY_KEY, JSON.stringify(history));
+    // Keep an already-open history panel live, same as the scan results.
+    figma.ui.postMessage({ type: 'history-result', entries: history });
 }
 // Tracks nodes Sentinel has already seen (name/kind/page) so that when a
 // DELETE change arrives — which gives only an id, no snapshot of what was
@@ -364,6 +366,11 @@ figma.ui.onmessage = async (msg) => {
     }
     if (msg.type === 'get-history') {
         figma.ui.postMessage({ type: 'history-result', entries: loadHistory() });
+    }
+    if (msg.type === 'clear-history') {
+        figma.root.setPluginData(HISTORY_KEY, JSON.stringify([]));
+        figma.ui.postMessage({ type: 'history-result', entries: [] });
+        figma.notify('Change history cleared');
     }
     if (msg.type === 'resize') {
         figma.ui.resize(msg.width, msg.height);

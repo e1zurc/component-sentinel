@@ -183,7 +183,11 @@
   <div id="history-panel" class="hidden" style="border-bottom:1px solid var(--border); max-height:260px; display:flex; flex-direction:column;">
     <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 14px; border-bottom:1px solid var(--border);">
       <span style="font-weight:600; font-size:11px;">Change history</span>
-      <button id="history-download">Download .md</button>
+      <div style="display:flex; gap:6px;">
+        <button id="history-refresh">Refresh</button>
+        <button id="history-download">Download .md</button>
+        <button id="history-clear">Clear</button>
+      </div>
     </div>
     <div id="history-list" style="overflow-y:auto; padding:8px 14px; font-size:11px;"></div>
   </div>
@@ -351,6 +355,32 @@
       lines.push(`- **${time}** ${historyIcon(e.type)} ${historyLabel(e)}`)
     })
     return lines.join('\n')
+  }
+
+  document.getElementById('history-refresh').onclick = () => {
+    post({ type: 'get-history' })
+  }
+
+  let clearArmed = false
+  let clearArmTimer = null
+  const clearBtn = document.getElementById('history-clear')
+  clearBtn.onclick = () => {
+    if (!clearArmed) {
+      clearArmed = true
+      clearBtn.textContent = 'Click again to confirm'
+      clearBtn.style.color = 'var(--danger)'
+      clearArmTimer = setTimeout(() => {
+        clearArmed = false
+        clearBtn.textContent = 'Clear'
+        clearBtn.style.color = ''
+      }, 3000)
+      return
+    }
+    clearTimeout(clearArmTimer)
+    clearArmed = false
+    clearBtn.textContent = 'Clear'
+    clearBtn.style.color = ''
+    post({ type: 'clear-history' })
   }
 
   document.getElementById('history-download').onclick = () => {
