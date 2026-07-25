@@ -168,6 +168,54 @@ figma.showUI(__html__, { width: 420, height: 560 });
 if (figma.command === 'generate-test-data') {
     generateTestFixture();
 }
+// Live updates while the panel is open: a full rescan is debounced (so a
+// burst of edits doesn't trigger dozens of rescans), while the check for
+// "did someone just place an instance of something deprecated" runs
+// immediately per created node, since it only looks at the new nodes in
+// this one event rather than the whole file.
+let rescanTimer = null;
+const RESCAN_DEBOUNCE_MS = 1200;
+function scheduleRescan() {
+    if (rescanTimer !== null)
+        clearTimeout(rescanTimer);
+    rescanTimer = setTimeout(async () => {
+        rescanTimer = null;
+        const rows = await scan();
+        figma.ui.postMessage({ type: 'scan-result', rows, live: true });
+    }, RESCAN_DEBOUNCE_MS);
+}
+async function checkNewlyCreatedNodes(changes) {
+    for (const change of changes) {
+        if (change.type !== 'CREATE')
+            continue;
+        const node = await figma.getNodeByIdAsync(change.id);
+        if (!node || node.type !== 'INSTANCE')
+            continue;
+        let main = null;
+        try {
+            main = await node.getMainComponentAsync();
+        }
+        catch (_a) {
+            main = null;
+        }
+        if (main && main.removed)
+            main = null;
+        if (!main) {
+            figma.notify(`⚠️ Placed an instance of a missing component ("${node.name}")`);
+            continue;
+        }
+        const dep = isDeprecated(main);
+        if (dep.deprecated) {
+            figma.notify(`⚠️ "${displayName(main)}" is deprecated${dep.reason ? ` — ${dep.reason}` : ''}`);
+        }
+    }
+}
+figma.loadAllPagesAsync().then(() => {
+    figma.on('documentchange', (event) => {
+        checkNewlyCreatedNodes(event.documentChanges);
+        scheduleRescan();
+    });
+});
 figma.ui.onmessage = async (msg) => {
     if (msg.type === 'scan') {
         const rows = await scan();

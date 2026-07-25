@@ -35,6 +35,25 @@
     justify-content: space-between;
     flex-shrink: 0;
   }
+  #live-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    margin-right: 5px;
+    transition: background 0.2s;
+  }
+  #live-dot.pulse { background: #3bb273; }
+  #search {
+    width: 100%;
+    font-family: inherit;
+    font-size: 11px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 0;
+  }
   header h1 {
     font-size: 13px;
     font-weight: 600;
@@ -152,7 +171,7 @@
   <header>
     <div>
       <h1>Component Sentinel</h1>
-      <p id="subtitle">Scanning file…</p>
+      <p id="subtitle"><span id="live-dot"></span><span id="subtitle-text">Scanning file…</span></p>
     </div>
     <div style="display:flex; gap:6px;">
       <button id="debug">Debug</button>
@@ -168,6 +187,10 @@
     <span id="copy-status" style="color:var(--muted); font-size:11px;"></span>
   </div>
 
+  <div style="padding:8px 14px; border-bottom:1px solid var(--border);">
+    <input id="search" type="text" placeholder="Filter by component name…" />
+  </div>
+
   <div id="list"><div class="empty">Scanning the whole file — this can take a moment on large files.</div></div>
 
   <div id="selection-panel" class="hidden">
@@ -181,7 +204,9 @@
 
 <script>
   const list = document.getElementById('list')
-  const subtitle = document.getElementById('subtitle')
+  const subtitle = document.getElementById('subtitle-text')
+  const liveDot = document.getElementById('live-dot')
+  const searchInput = document.getElementById('search')
   const selectionPanel = document.getElementById('selection-panel')
   const selName = document.getElementById('sel-name')
   const selDeprecated = document.getElementById('sel-deprecated')
@@ -284,9 +309,24 @@
       subtitle.textContent = 'Nothing to report'
       return
     }
-    const flagged = rows.filter((r) => r.status !== 'ok').length
+    const flagged = rows.filter((r) => r.status !== 'ok')
+    const flaggedInstances = flagged.reduce((n, r) => n + r.count, 0)
     subtitle.textContent = `${rows.length} component${rows.length === 1 ? '' : 's'} in use` +
-      (flagged ? ` — ${flagged} need attention` : ' — all clear')
+      (flagged.length
+        ? ` — ${flaggedInstances} instance${flaggedInstances === 1 ? '' : 's'} across ${flagged.length} need attention`
+        : ' — all clear')
+
+    renderList()
+  }
+
+  function renderList() {
+    const query = searchInput.value.trim().toLowerCase()
+    const rows = query ? lastRows.filter((r) => r.name.toLowerCase().includes(query)) : lastRows
+
+    if (!rows.length) {
+      list.innerHTML = '<div class="empty">No components match that filter.</div>'
+      return
+    }
 
     list.innerHTML = rows.map((row) => {
       const totalPages = row.pages.length
@@ -324,10 +364,22 @@
     return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
   }
 
+  searchInput.addEventListener('input', renderList)
+
+  let liveDotTimer = null
+  function pulseLiveDot() {
+    liveDot.classList.add('pulse')
+    if (liveDotTimer) clearTimeout(liveDotTimer)
+    liveDotTimer = setTimeout(() => liveDot.classList.remove('pulse'), 800)
+  }
+
   window.onmessage = (event) => {
     const msg = event.data.pluginMessage
     if (!msg) return
-    if (msg.type === 'scan-result') render(msg.rows)
+    if (msg.type === 'scan-result') {
+      render(msg.rows)
+      if (msg.live) pulseLiveDot()
+    }
     if (msg.type === 'debug-result') {
       const out = document.getElementById('debug-output')
       out.style.display = 'block'

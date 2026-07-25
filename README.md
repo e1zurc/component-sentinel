@@ -14,6 +14,18 @@ instance still using it, across every page in the file. It also catches
   instance — so an engineer can see exactly what's being retired without
   installing the plugin themselves. Paste the Markdown into a PR description,
   a ticket, or Slack; pipe the JSON into a script.
+- **Live updates** — while the panel is open, it rescans automatically as
+  the file changes (debounced, so a burst of edits doesn't spam rescans) and
+  the green dot next to the count pulses on each update.
+- **Instant heads-up** — the moment anyone places an instance of a component
+  you've marked deprecated (or one that's missing), Figma shows a toast right
+  then, instead of only surfacing it the next time someone runs a scan.
+- Filter the list by component name — useful once a file has dozens of
+  components in use.
+
+Note: "live" means live *while the plugin panel is open* — Figma plugins
+don't run persistently in the background when closed (that's what Widgets
+are for, a different extension type). Reopen the panel to pick back up.
 
 This isn't a general design-system linter (hardcoded colors, detached
 instances, drift detection — tools like ComponentQA already cover that well).

@@ -31,6 +31,11 @@ minute.
   clipboard. Paste the Markdown into a Slack message, ticket, or PR
   description so a developer can see exactly what's changing without
   installing the plugin themselves.
+- **Keep the panel open while you work** — it rescans automatically as the
+  file changes, and you'll get an immediate popup if you (or a teammate)
+  place an instance of something already marked deprecated.
+- Use the **filter box** above the list to narrow things down by name on
+  larger files.
 
 ## Updating
 
