@@ -36,6 +36,10 @@ minute.
   place an instance of something already marked deprecated.
 - Use the **filter box** above the list to narrow things down by name on
   larger files.
+- Click **History** to see everything that's been created, deleted, moved,
+  or (un)deprecated, with timestamps — then **Download .md** to save it as
+  a file you can hand to a developer. This history lives in the Figma file
+  itself, so your whole team sees the same log.
 
 ## Updating
 

@@ -3,6 +3,29 @@
 // component across the whole file, and ranks components by real usage.
 const DEPRECATED_KEY = 'sentinel-deprecated';
 const DEPRECATED_REASON_KEY = 'sentinel-deprecated-reason';
+const HISTORY_KEY = 'sentinel-history';
+const MAX_HISTORY_ENTRIES = 400;
+function loadHistory() {
+    try {
+        const raw = figma.root.getPluginData(HISTORY_KEY);
+        return raw ? JSON.parse(raw) : [];
+    }
+    catch (_a) {
+        return [];
+    }
+}
+function appendHistory(entry) {
+    const history = loadHistory();
+    history.push(Object.assign({ ts: new Date().toISOString() }, entry));
+    while (history.length > MAX_HISTORY_ENTRIES)
+        history.shift();
+    figma.root.setPluginData(HISTORY_KEY, JSON.stringify(history));
+}
+// Tracks nodes Sentinel has already seen (name/kind/page) so that when a
+// DELETE change arrives — which gives only an id, no snapshot of what was
+// there — we can still describe what got deleted. Only covers nodes seen
+// during a scan or created while the panel was open, in this session.
+const nodeCache = new Map();
 function isDeprecated(component) {
     if (!component)
         return { deprecated: false, reason: '' };
@@ -38,6 +61,11 @@ async function scan() {
         const page = instance.parent ? findPage(instance) : null;
         const pageId = page ? page.id : 'unknown';
         const pageName = page ? page.name : 'Unknown page';
+        nodeCache.set(instance.id, { name: instance.name, kind: 'instance', pageName });
+        if (main) {
+            const mainPage = findPage(main);
+            nodeCache.set(main.id, { name: displayName(main), kind: 'component', pageName: mainPage ? mainPage.name : pageName });
+        }
         const key = main ? main.key || main.id : `missing:${instance.id}`;
         const dep = isDeprecated(main);
         let row = rows.get(key);
@@ -184,35 +212,69 @@ function scheduleRescan() {
         figma.ui.postMessage({ type: 'scan-result', rows, live: true });
     }, RESCAN_DEBOUNCE_MS);
 }
-async function checkNewlyCreatedNodes(changes) {
+const TRACKED_TYPES = new Set(['INSTANCE', 'COMPONENT', 'COMPONENT_SET']);
+async function handleDocumentChanges(changes) {
     for (const change of changes) {
-        if (change.type !== 'CREATE')
+        if (change.type === 'CREATE') {
+            const node = await figma.getNodeByIdAsync(change.id);
+            if (!node || !TRACKED_TYPES.has(node.type))
+                continue;
+            const page = findPage(node);
+            const pageName = page ? page.name : 'Unknown page';
+            nodeCache.set(node.id, { name: node.name, kind: node.type.toLowerCase(), pageName });
+            appendHistory({ type: 'created', name: node.name, kind: node.type.toLowerCase(), pageName, detail: '' });
+            if (node.type === 'INSTANCE') {
+                let main = null;
+                try {
+                    main = await node.getMainComponentAsync();
+                }
+                catch (_a) {
+                    main = null;
+                }
+                if (main && main.removed)
+                    main = null;
+                if (!main) {
+                    figma.notify(`⚠️ Placed an instance of a missing component ("${node.name}")`);
+                    continue;
+                }
+                const dep = isDeprecated(main);
+                if (dep.deprecated) {
+                    figma.notify(`⚠️ "${displayName(main)}" is deprecated${dep.reason ? ` — ${dep.reason}` : ''}`);
+                }
+            }
             continue;
-        const node = await figma.getNodeByIdAsync(change.id);
-        if (!node || node.type !== 'INSTANCE')
-            continue;
-        let main = null;
-        try {
-            main = await node.getMainComponentAsync();
         }
-        catch (_a) {
-            main = null;
-        }
-        if (main && main.removed)
-            main = null;
-        if (!main) {
-            figma.notify(`⚠️ Placed an instance of a missing component ("${node.name}")`);
+        if (change.type === 'DELETE') {
+            const cached = nodeCache.get(change.id);
+            if (cached) {
+                appendHistory({ type: 'deleted', name: cached.name, kind: cached.kind, pageName: cached.pageName, detail: '' });
+                nodeCache.delete(change.id);
+            }
             continue;
         }
-        const dep = isDeprecated(main);
-        if (dep.deprecated) {
-            figma.notify(`⚠️ "${displayName(main)}" is deprecated${dep.reason ? ` — ${dep.reason}` : ''}`);
+        if (change.type === 'PROPERTY_CHANGE' && change.properties.includes('parent')) {
+            const cached = nodeCache.get(change.id);
+            const node = await figma.getNodeByIdAsync(change.id);
+            if (!node || !cached)
+                continue;
+            const page = findPage(node);
+            const newPageName = page ? page.name : 'Unknown page';
+            if (newPageName !== cached.pageName) {
+                appendHistory({
+                    type: 'moved',
+                    name: cached.name,
+                    kind: cached.kind,
+                    pageName: newPageName,
+                    detail: `from "${cached.pageName}"`,
+                });
+                nodeCache.set(change.id, Object.assign(Object.assign({}, cached), { pageName: newPageName }));
+            }
         }
     }
 }
 figma.loadAllPagesAsync().then(() => {
     figma.on('documentchange', (event) => {
-        checkNewlyCreatedNodes(event.documentChanges);
+        handleDocumentChanges(event.documentChanges);
         scheduleRescan();
     });
 });
@@ -288,9 +350,20 @@ figma.ui.onmessage = async (msg) => {
         const target = node;
         target.setPluginData(DEPRECATED_KEY, deprecated ? 'true' : 'false');
         target.setPluginData(DEPRECATED_REASON_KEY, reason || '');
+        const page = findPage(target);
+        appendHistory({
+            type: deprecated ? 'deprecated' : 'undeprecated',
+            name: target.name,
+            kind: target.type.toLowerCase(),
+            pageName: page ? page.name : 'Unknown page',
+            detail: reason || '',
+        });
         figma.notify(deprecated ? `Marked "${target.name}" as deprecated` : `Cleared deprecation on "${target.name}"`);
         const rows = await scan();
         figma.ui.postMessage({ type: 'scan-result', rows });
+    }
+    if (msg.type === 'get-history') {
+        figma.ui.postMessage({ type: 'history-result', entries: loadHistory() });
     }
     if (msg.type === 'resize') {
         figma.ui.resize(msg.width, msg.height);

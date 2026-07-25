@@ -27,6 +27,16 @@ Note: "live" means live *while the plugin panel is open* — Figma plugins
 don't run persistently in the background when closed (that's what Widgets
 are for, a different extension type). Reopen the panel to pick back up.
 
+- **Change history** — click **History** to see a running log of what got
+  created, deleted, moved between pages, or (un)deprecated, with a
+  timestamp for each. Click **Download .md** to save it as a file — hand it
+  to a developer so they can see exactly what changed without opening
+  Figma. History is stored in the file itself (`setPluginData` on the
+  document), so it persists across sessions and is visible to your whole
+  team, not just your machine. Deletions/moves are only logged for nodes
+  Sentinel has already seen (from a scan, or created while the panel was
+  open) — it can't describe something it never observed existing.
+
 This isn't a general design-system linter (hardcoded colors, detached
 instances, drift detection — tools like ComponentQA already cover that well).
 It's specifically for the deprecation/retirement workflow those tools don't

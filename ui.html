@@ -143,7 +143,7 @@
     flex-shrink: 0;
     background: var(--panel);
   }
-  #selection-panel.hidden { display: none; }
+  .hidden { display: none !important; }
   #selection-panel .sel-name {
     font-weight: 600;
     margin-bottom: 6px;
@@ -174,10 +174,19 @@
       <p id="subtitle"><span id="live-dot"></span><span id="subtitle-text">Scanning file…</span></p>
     </div>
     <div style="display:flex; gap:6px;">
+      <button id="history-toggle">History</button>
       <button id="debug">Debug</button>
       <button id="rescan">Rescan</button>
     </div>
   </header>
+
+  <div id="history-panel" class="hidden" style="border-bottom:1px solid var(--border); max-height:260px; display:flex; flex-direction:column;">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 14px; border-bottom:1px solid var(--border);">
+      <span style="font-weight:600; font-size:11px;">Change history</span>
+      <button id="history-download">Download .md</button>
+    </div>
+    <div id="history-list" style="overflow-y:auto; padding:8px 14px; font-size:11px;"></div>
+  </div>
 
   <pre id="debug-output" style="display:none; margin:0; padding:10px 14px; font-size:10px; white-space:pre-wrap; overflow-y:auto; max-height:220px; border-bottom:1px solid var(--border); background:#0f0f0f; color:#8fe38f;"></pre>
 
@@ -286,6 +295,77 @@
     post({ type: 'debug' })
   }
 
+  let lastHistory = []
+  const historyPanel = document.getElementById('history-panel')
+  const historyList = document.getElementById('history-list')
+
+  document.getElementById('history-toggle').onclick = () => {
+    const opening = historyPanel.classList.contains('hidden')
+    historyPanel.classList.toggle('hidden')
+    if (opening) post({ type: 'get-history' })
+  }
+
+  function historyIcon(type) {
+    if (type === 'created') return '➕'
+    if (type === 'deleted') return '🗑️'
+    if (type === 'moved') return '↔️'
+    if (type === 'deprecated') return '🟡'
+    if (type === 'undeprecated') return '✅'
+    return '•'
+  }
+
+  function historyLabel(entry) {
+    const verb = {
+      created: 'Created',
+      deleted: 'Deleted',
+      moved: 'Moved',
+      deprecated: 'Marked deprecated',
+      undeprecated: 'Cleared deprecation on',
+    }[entry.type] || entry.type
+    let line = `${verb} ${entry.kind} "${entry.name}"`
+    if (entry.type === 'moved') line += ` ${entry.detail} to "${entry.pageName}"`
+    else line += ` (${entry.pageName})`
+    if (entry.detail && entry.type !== 'moved') line += ` — ${entry.detail}`
+    return line
+  }
+
+  function renderHistory(entries) {
+    lastHistory = entries
+    if (!entries.length) {
+      historyList.innerHTML = '<div class="empty">No changes recorded yet — history builds up while this panel stays open.</div>'
+      return
+    }
+    const reversed = entries.slice().reverse()
+    historyList.innerHTML = reversed.map((e) => {
+      const d = new Date(e.ts)
+      const time = isNaN(d) ? '' : d.toLocaleString()
+      return `<div style="padding:4px 0; border-bottom:1px solid var(--border);">${historyIcon(e.type)} ${escapeHtml(historyLabel(e))}<div style="color:var(--muted); font-size:10px;">${time}</div></div>`
+    }).join('')
+  }
+
+  function buildHistoryMarkdown(entries) {
+    const lines = ['# Component Sentinel — Change History', '']
+    entries.slice().reverse().forEach((e) => {
+      const d = new Date(e.ts)
+      const time = isNaN(d) ? e.ts : d.toLocaleString()
+      lines.push(`- **${time}** ${historyIcon(e.type)} ${historyLabel(e)}`)
+    })
+    return lines.join('\n')
+  }
+
+  document.getElementById('history-download').onclick = () => {
+    const text = buildHistoryMarkdown(lastHistory)
+    const blob = new Blob([text], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'component-sentinel-history.md'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
   document.getElementById('sel-save').onclick = () => {
     if (!currentSelectionNodeId) return
     post({
@@ -385,6 +465,7 @@
       out.style.display = 'block'
       out.textContent = msg.text
     }
+    if (msg.type === 'history-result') renderHistory(msg.entries)
     if (msg.type === 'selection-component') {
       if (!msg.node) {
         selectionPanel.classList.add('hidden')
